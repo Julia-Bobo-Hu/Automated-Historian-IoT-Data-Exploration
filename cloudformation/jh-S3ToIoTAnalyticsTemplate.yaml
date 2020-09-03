@@ -1,0 +1,259 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Outputs" : {
+        "LauncherLambda" : {
+            "Description": "The lambda function that sends s3 keys into a stream for future processing.",  
+            "Value" : {"Ref": "Launcher"}
+        },
+        "KinesisStream" : {
+            "Description": "The kinesis stream that the launcher lambda sends keys into.",  
+            "Value" : {"Ref": "Queue"}
+        }
+    },
+    "Resources": {
+        "Queue": {
+            "Type": "AWS::Kinesis::Stream",
+            "Properties": {
+                "RetentionPeriodHours": 24,
+                "ShardCount": 1
+            }
+        },
+        "LauncherRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                }
+            }
+        },
+        "WorkerRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                }
+            }
+        },
+        "Launcher": {
+            "Type": "AWS::Lambda::Function",
+            "DependsOn": "LauncherRole",
+            "Properties": {
+                "Handler": "lambda_function.lambda_handler",
+                "Runtime": "python3.6",
+                "Code": {
+                    "S3Bucket": "jh-lambdas-for-blog",
+                    "S3Key": "launcher.zip"
+                },
+                "Description": "The lambda function that sends s3 keys into a stream for future processing.",
+                "MemorySize": 128,
+                "Timeout": 300,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LauncherRole",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+        "Worker": {
+            "Type": "AWS::Lambda::Function",
+            "DependsOn": ["WorkerRole", "LambdaKinesisTriggerPolicy"],
+            "Properties": {
+                "Handler": "lambda_function.lambda_handler",
+                "ReservedConcurrentExecutions": 10,
+                "Runtime": "python3.6",
+                "Code": {
+                    "S3Bucket": "jh-lambdas-for-blog",
+                    "S3Key": "worker.zip"
+                },
+                "Description": "The lambda function that downloads an s3 file and sends batchPutMessage requests.",
+                "MemorySize": 128,
+                "Timeout": 300,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "WorkerRole",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+        "AllowPutToQueue": {
+            "Type": "AWS::IAM::Policy",
+            "DependsOn": "Queue",
+            "Properties": {
+                "PolicyName": "AllowPutToQueue",
+                "Roles": [
+                    {
+                        "Ref": "LauncherRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "Stmt1524367266219",
+                            "Action": [
+                                "kinesis:PutRecord",
+                                "kinesis:PutRecords"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": {
+                                "Fn::GetAtt": [
+                                    "Queue",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "ReadListS3": {
+            "Type": "AWS::IAM::Policy",
+            "DependsOn": "Queue",
+            "Properties": {
+                "PolicyName": "ReadListS3",
+                "Roles": [
+                    {"Ref": "LauncherRole"}, {"Ref": "WorkerRole"}
+                ],
+                "PolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Sid": "Stmt1524515862554",
+                      "Action": [
+                        "s3:GetObject",
+                        "s3:ListBucket",
+                        "s3:ListObjects"
+                      ],
+                      "Effect": "Allow",
+                      "Resource": "*"
+                    }
+                  ]
+                }
+            }
+        },
+        "SaveLogs": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "LogPolicy",
+                "Roles": [
+                    {"Ref": "WorkerRole"}, {"Ref": "LauncherRole"}
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogStreams"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            }
+        },
+        "BatchPutMessagePolicy": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "BatchPutMessagePolicy",
+                "Roles": [
+                    {
+                        "Ref": "WorkerRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "iotanalytics:BatchPutMessage"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            }
+        },
+        "LambdaKinesisTriggerPolicy": {
+            "Type": "AWS::IAM::Policy",
+            "DependsOn": "Queue",
+            "Properties": {
+                "PolicyName": "LambdaKinesisTriggerPolicy",
+                "Roles": [
+                    {
+                        "Ref": "WorkerRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "kinesis:ListStreams",
+                                "kinesis:GetShardIterator",
+                                "kinesis:GetRecords",
+                                "kinesis:DescribeStream"
+                            ],
+                            "Resource": {
+                                "Fn::GetAtt": [
+                                    "Queue",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "StreamInputEvent": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+                "Worker",
+                "Queue",
+                "LambdaKinesisTriggerPolicy"
+            ],
+            "Properties": {
+                "BatchSize": 1,
+                "Enabled": true,
+                "EventSourceArn": {
+                    "Fn::GetAtt": [
+                        "Queue",
+                        "Arn"
+                    ]
+                },
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "Worker",
+                        "Arn"
+                    ]
+                },
+                "StartingPosition": "TRIM_HORIZON"
+            }
+        }
+    }
+}
