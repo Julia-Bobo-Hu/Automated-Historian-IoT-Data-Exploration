@@ -10,7 +10,7 @@ To use the AWS cli script to trigger launcher lambda function:
 
 .. code-block:: bash
 
-    pip install -e projectdir
+    aws lambda invoke --function-name REPLACE_EXAMPLE_FUNCTION_NAME --payload file://lambdaPayload.json --region us-east-1 lambdaOutput.txt
 
 .. code-block:: bash
 
