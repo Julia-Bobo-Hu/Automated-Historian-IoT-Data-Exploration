@@ -35,10 +35,12 @@ aws lambda invoke --function-name REPLACE_WITH_EXAMPLE_FUNCTION_NAME --payload f
 
 Due to the large historian datafile size, we made following changes to previous example of S3 data ingestion with Kinesis(https://aws.amazon.com/blogs/iot/ingesting-data-from-s3-by-using-batchputmessage-aws-lambda-and-amazon-kinesis/): 
 both Cloudformation for Kinesis streaming provision and "Worker" lambda function have been modified to accomodate parallel lambda invocation. 
-Cloudformation for Kinesis stream specify the number of shards as 4. Such modification allows the worker Lambda functions to run concurrently. 
+Cloudformation for Kinesis stream specify the number of shards as 3. Such modification allows the worker Lambda functions to run concurrently. 
 In the "worker" lambda function, the maximum allowed concurrent invocations need to be increased. 
 Lastly, you would need to divide the MAX_REQUESTS_PER_SECOND value in the worker Lambda function by the value you assigned to ReservedConcurrentExecutions.
 
+Once the data ingestion process starts, you can monitor the process by checking the log group for "Worker" Lambda function.
+When the log stream for "Worker" lambda stopped updating, the data ingestion is finished. The whole process for ingesting 1.8 millon records takes about 15 minutes. 
 
 ### Step 2, Dataset Generation and Storage with IoT Analytics
 
