@@ -4,7 +4,7 @@ often change continuously with the time progression. It is important to train an
 to achieve more accurate data analytics, and avoid model drifting. However in the past, such model re-training process contain several 
 manual steps, e.g. data exploration, that are difficult to automate, and time-consuming. They require non-negligible human and capital expense.
 This github repository aims to provide a fully managed AWS serivce solution to automate the IoT data exploration process. 
-The purpose of automated IoT data exploration is to identify anmalies, outliers, missing values and skewed target distribution, so that it can help the Data Scientist to develop a suitable data preprocessing. 
+The purpose of automated IoT data exploration is to identify anomalies, outliers, missing values and skewed target distribution, so that it can help the Data Scientist to develop a suitable data preprocessing. 
 We envisage that such automated and code-free data exploration will be instrumental to efficient data normalization and accurate ML model.
 
 This is a project using multiple AWS services to automate historian IoT data Exploration. To show case this solution, the input historian data leveraged an open source data set from Kaggle (https://www.kaggle.com/c/ashrae-energy-prediction
@@ -40,7 +40,7 @@ In the "worker" lambda function, the maximum allowed concurrent invocations need
 Lastly, you would need to divide the MAX_REQUESTS_PER_SECOND value in the worker Lambda function by the value you assigned to ReservedConcurrentExecutions.
 
 Once the data ingestion process starts, you can monitor the process by checking the log group for "Worker" Lambda function.
-When the log stream for "Worker" lambda stopped updating, the data ingestion is finished. The whole process for ingesting 1.8 millon records takes about 15 minutes. 
+When the log stream for "Worker" lambda stopped updating, the data ingestion is finished. The whole process for ingesting 1.8 millon records takes about 12 minutes. 
 
 ### Step 2, Dataset Generation and Storage with IoT Analytics
 
@@ -51,20 +51,17 @@ Data stores store data. They are scalable and queryable.
 Datasets retrieve data from a datastore. They are the result of some SQL query run against the data store.
 
 Another changes made to the current cloudformation template, the provision of IoT Analytics has also be provided in a "infractures as software" manner. 
-This will improve the consistancy of the AWS service provision. 
+Suitable services role for Lambda function to BatuchPutMessage to IoT Analytics has been provisioned by this CloudFormation template as well.
+This will improve the consistancy of the AWS service provision.  
 
 IoT Analytics figure 2
-
-Bash:
-aws iotanalytics create-datastore --datastore-name bpm_blog_datastore
-aws iotanalytics create-channel --channel-name bpm_blog_channel
-aws iotanalytics create-pipeline --cli-input-json file://pipeline_config.json
 
 ### Step 3, Create low temporal resolution Dataset for QuickSight SPICE data ingestion 
 
 Two datasets were generated from the IoT Datastore. The high-resolution dataset, which selects every record within the Datastore, is generated for future Sagemaker Notebook model training.
 The low temporal resolution dataset aggreates the timestamp from minutes to days, then calculate average meter reading, and weather reading. 
 This SQL query also select the first time-related record within each time feature after groupby subfunction, to reduce the temporal resolution. 
+The sql_query folder contains relavant sql queries used to generate two seperate IoT Datasets.
 
 ### Step 4, Several examples of using QuickSight dashboard to achieve code-free data exploration are explained. 
 
