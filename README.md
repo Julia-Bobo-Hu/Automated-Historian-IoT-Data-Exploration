@@ -72,6 +72,8 @@ The sql_query folder contains relavant sql queries used to generate two seperate
 
 In this repository, the low resolution IoT Analytics dataset is imported to Quicksight for dashboard. 
 On QuickSight, click on New analysis, followed by New data set. Next, click on AWS IoT Analytics, then import the dataset as SPICE dataset in QuickSight. 
+After importing the dataset, you can click on "edit" to refine the dataset. A few common operations are: defining timestamp column as datetime type. 
+Define relational hiarachy for "country", "state" and "city" columns for drill down functions. 
 
 
 
