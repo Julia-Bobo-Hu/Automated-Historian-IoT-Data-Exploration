@@ -89,6 +89,14 @@ In this example, the bar chart is chosen as visual type. X_axis is chosen "times
 e.g. avg_air_temp (count), avg_cloud_cov(count), avg_precip(count), avg_dew_temp(count). 
 From the comparison, it can be seen that "avg_cloud_cov(count)" missed half of the values.
 
- 
+#### Example 3: Detect outliers with Treemap
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/quicksight_example3.PNG?raw=true)
+
+Select visual type as "Tree map", then select "building_id" as groupby column, then select "avg_meter_reading(average)" for size, then "avg_meter_reading(average)" for color.
+To detect outliers only for meter type: cold steam, setup a filter, use meter_type == colde steam as filter criteria to constrain outlier detection for one meter type.
+It can be seen that building_id == 1099 has significant higher meter reading values compared with all other buildings. Data Scientist can use this method for outlier removal.
+
+  
+
 
 
