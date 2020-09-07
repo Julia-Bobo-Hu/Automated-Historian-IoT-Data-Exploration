@@ -30,7 +30,7 @@ Such solution will ensure the IoT data storage will only be charged once at IoT 
 Deployment packages contain the code for the Lambda functions. We use deployment packages because they allow us to upload dependencies along with the the code. 
 This S3 folder contains those packages. The function definitions are displayed below.
 
-Data Ingestion Figure 1
+### Data Ingestion Figure 1
 
 To trigger the lambda function in this demo, you’ll need to install the AWS Command Line Interface (CLI) and have Admin role authorization.  
 For the initial set up of the CLI on your device please follow these instructions (https://aws.amazon.com/cli/). Additionally, the reader should be able to set up IAM credentials. 
