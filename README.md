@@ -93,9 +93,15 @@ From the comparison, it can be seen that "avg_cloud_cov(count)" missed half of t
 ![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/quicksight_example3.PNG?raw=true)
 
 Select visual type as "Tree map", then select "building_id" as groupby column, then select "avg_meter_reading(average)" for size, then "avg_meter_reading(average)" for color.
-To detect outliers only for meter type: cold steam, setup a filter, use meter_type == colde steam as filter criteria to constrain outlier detection for one meter type.
+To detect outliers only for meter type: cold steam, setup a filter, use meter_type == cold steam as filter criteria to constrain outlier detection for one meter type.
 It can be seen that building_id == 1099 has significant higher meter reading values compared with all other buildings. Data Scientist can use this method for outlier removal.
 
+#### Example 4: Detect excessive empty values 
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/quicksight_example4.PNG?raw=true)
+
+Select visual type as "Heatmap", then select "timestamp_new" as Row, then select "site_id" as Columns, last, choose "avg_meter_reading(count)" as Values.
+To detect large number of missing values, setup a filter, use meter_reading == 0 as filter criteria to constrain counts to these missing values only.
+It can be seen that site0 has significant higher missing values in the first 6 months compared with all other sites. Data Scientist can also use this method for abnomal values removal.
   
 
 
