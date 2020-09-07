@@ -83,4 +83,12 @@ First, select visual type as "map", Use "country-state-city"hiarachy data for ge
 Last use "primary use" for color, and it can show different building usages by colors. Enduser can drill down to different granuality level by clicking "drill down" function. 
 
 #### Example 2: Plot multiple columns together for missing value exploration
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/quicksight_example2.PNG?raw=true)
+
+In this example, the bar chart is chosen as visual type. X_axis is chosen "timestamp_new", and Y_axis is chosen as multiple columns, 
+e.g. avg_air_temp (count), avg_cloud_cov(count), avg_precip(count), avg_dew_temp(count). 
+From the comparison, it can be seen that "avg_cloud_cov(count)" missed half of the values.
+
+ 
+
 
