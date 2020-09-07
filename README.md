@@ -58,7 +58,8 @@ Another changes made to the current cloudformation template, the provision of Io
 Suitable services role for Lambda function to BatuchPutMessage to IoT Analytics has been provisioned by this CloudFormation template as well.
 This will improve the consistancy of the AWS service provision.  
 
-IoT Analytics figure 2
+### IoT Analytics Step2 figure 
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/step2.PNG?raw=true)
 
 ### Step 3, Create low temporal resolution Dataset for QuickSight SPICE data ingestion 
 
