@@ -82,5 +82,5 @@ Define relational hiarachy for "country", "state" and "city" columns for drill d
 First, select visual type as "map", Use "country-state-city"hiarachy data for geospacial dimention, then use "building_id(count)" for size, and this will illustrate how many buildings for each city.
 Last use "primary use" for color, and it can show different building usages by colors. Enduser can drill down to different granuality level by clicking "drill down" function. 
 
-
+#### Example 2: Plot multiple columns together for missing value exploration
 
