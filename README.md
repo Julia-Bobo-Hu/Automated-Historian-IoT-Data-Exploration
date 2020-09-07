@@ -17,6 +17,7 @@ This is a project using multiple AWS services to automate historian IoT data Exp
 This solution architect is made of three steps. Step 1: Efficient historian data ingestion with two seperate lambda functions and Kinesis stream. Step 2: Multi-resolution datasets through IoT Analytics platform. Step3: Automated data exploration by using IoT Analytics datasets and QuickSight.  
 
 ### Step 1, Data Ingestion Pipeline for Historian data
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/step1.PNG?raw=true)
 
 To regularly ingest high-resolution IoT historian dataset for data exploration, Kinesis stream with lambda functions were choosen to ingest data to IoT Anlytics platform. 
 Since large amount of historian IoT data is ingested from S3, the IoT Analytics's BatchPutMessage mode is used, and Kinesis's parallel lambda function invocation is also applied to accelerate data ingestion.
