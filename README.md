@@ -10,7 +10,7 @@ We envisage that such automated and code-free data exploration will be instrumen
 This is a project using multiple AWS services to automate historian IoT data Exploration. To show case this solution, the input historian data leveraged an open source data set from Kaggle (https://www.kaggle.com/c/ashrae-energy-prediction
 ). 
 
-##High-Level AWS IoT Analytics Architecture
+![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/Step1_architecture_revised_batch_method.png?raw=true)
 
 ### Step 1, Data Ingestion Pipeline for Historian data
 
