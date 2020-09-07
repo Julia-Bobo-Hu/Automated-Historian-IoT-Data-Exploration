@@ -66,7 +66,7 @@ The sql_query folder contains relavant sql queries used to generate two seperate
 ### Step 4, Several examples of using QuickSight dashboard to achieve code-free data exploration are explained. 
 
 In this repository, the low resolution IoT Analytics dataset is imported to Quicksight for dashboard. 
-On QuickSight, click on New analysis, followed by New data set. Next, click on AWS IoT Analytics, then import the dataset as SPICE dataset in QuickSight.
+On QuickSight, click on New analysis, followed by New data set. Next, click on AWS IoT Analytics, then import the dataset as SPICE dataset in QuickSight. 
 
 
 
