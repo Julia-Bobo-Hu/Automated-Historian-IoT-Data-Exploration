@@ -75,9 +75,12 @@ On QuickSight, click on New analysis, followed by New data set. Next, click on A
 After importing the dataset, you can click on "edit" to refine the dataset. A few common operations are: defining timestamp column as datetime type. 
 Define relational hiarachy for "country", "state" and "city" columns for drill down functions. In this file, three examples are explained to show how to achieve data exploration in a code-free way by using QuickSight. 
 
+#### Example 1: Use drill-down function for building usage exploration
+
 ![alt text](https://github.com/Julia-Bobo-Hu/Automated-Historian-IoT-Data-Exploration/blob/master/images/quicksight_example1.PNG?raw=true)
 
-
+First, select visual type as "map", Use "country-state-city"hiarachy data for geospacial dimention, then use "building_id(count)" for size, and this will illustrate how many buildings for each city.
+Last use "primary use" for color, and it can show different building usages by colors. Enduser can drill down to different granuality level by clicking "drill down" function. 
 
 
 
