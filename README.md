@@ -64,7 +64,7 @@ This will improve the consistancy of the AWS service provision.
 ### Step 3, Create low temporal resolution Dataset for QuickSight SPICE data ingestion 
 
 Two datasets were generated from the IoT Datastore. The high-resolution dataset, which selects every record within the Datastore, is generated for future Sagemaker Notebook model training.
-The low temporal resolution dataset aggreates the timestamp from minutes to days, then calculate average meter reading, and weather reading. 
+The low temporal resolution dataset aggreates the timestamp from minutes to days, then calculates average meter reading, and multiple weather readings (e.g. air temperature, dew temperature, wind speed, wind direction, cloud coverage, etc.). 
 This SQL query also select the first time-related record within each time feature after groupby subfunction, to reduce the temporal resolution. 
 The sql_query folder contains relavant sql queries used to generate two seperate IoT Datasets.
 
