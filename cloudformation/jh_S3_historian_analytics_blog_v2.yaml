@@ -1,0 +1,499 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  IoT ML Training Stack. **WARNING** You will be billed for 
+  the AWS resources used if you create a stack from this template.
+Parameters:
+  ProjectName:
+    Type: String
+    MinLength: 1
+    Default: jh-Iot-S3-Batch
+    Description: Project name value used in 'Project' tag.
+  Prefix:
+    Type: String
+    Default: blogdemo
+    Description: Prefix to all the described Resources
+  SqlQueryHigh:
+    Type: String  
+    Default: "select * from blogdemo_iot_batch_datastore" 
+  SqlQueryLow:
+    Type: String
+    Default: "SELECT building_id, meter, site_id, primary_use, timestamp_ISO, avg(try_cast(meter_reading as double)) as avg_meter_reading, city, country, state FROM (SELECT*, date(date_parse(timestamp, '%Y-%m-%d %H:%i:%s')) as timestamp_ISO FROM blogdemo_iot_batch_datastore) GROUP BY site_id, building_id, primary_use, meter, city, country, state,timestamp_ISO"
+Outputs:
+  LauncherLambda:
+    Description: The lambda function that sends s3 keys into a stream for future processing.
+    Value:
+      Ref: Launcher
+  KinesisStream:
+    Description: The kinesis stream that the launcher lambda sends keys into.
+    Value:
+      Ref: Queue
+  IoTAnalyticsChannel:
+    Description: The IoTAnalytics Channel that the worker lambda sends data into.
+    Value:
+      Ref: IoTAnalyticsChannel
+  IoTAnalyticsPipeline:
+    Description: The IoTAnalytics Pipeline that setup by this cloudformation
+    Value:
+      Ref: IoTAnalyticsPipeline
+  IoTAnalyticsDatastore:
+    Description: The IoTAnalytics Datastore setup by this cloudformation
+    Value:
+      Ref: IoTAnalyticsDatastore
+  NotebookARN:
+    Description: SageMaker Notebook ARN
+    Value: 
+      Ref: NotebookInstance
+  SageMakerS3Bucket:
+    Description: Name of the s3 bucket used for output ML model training score
+    Value: 
+      Ref: CreateRawBucket
+Resources:
+  Queue:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: 
+        Fn::Sub: ${Prefix}-kinesis-stream
+      RetentionPeriodHours: 24
+      ShardCount: 3
+  LauncherRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ${Prefix}-iot-analytics-launcher-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ${Prefix}-iot-analytics-worker-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+  Launcher:
+    Type: AWS::Lambda::Function
+    DependsOn: LauncherRole
+    Properties:
+      FunctionName:
+        Fn::Sub: ${Prefix}_iot_analytics_launcher
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.6
+      Code:
+        S3Bucket: jh-lambdas-for-blog
+        S3Key: launcher.zip
+      Description: The lambda function that sends s3 keys into a stream for future
+        processing.
+      MemorySize: 128
+      Timeout: 300
+      Role:
+        Fn::GetAtt:
+        - LauncherRole
+        - Arn
+  Worker:
+    Type: AWS::Lambda::Function
+    DependsOn:
+    - WorkerRole
+    - LambdaKinesisTriggerPolicy
+    Properties:
+      FunctionName:
+        Fn::Sub: ${Prefix}_iot_analytics_worker
+      Handler: lambda_function.lambda_handler
+      ReservedConcurrentExecutions: 10
+      Runtime: python3.6
+      Code:
+        S3Bucket: jh-lambdas-for-blog
+        S3Key: worker.zip
+      Description: The lambda function that downloads an s3 file and sends batchPutMessage
+        requests.
+      MemorySize: 128
+      Timeout: 300
+      Role:
+        Fn::GetAtt:
+        - WorkerRole
+        - Arn
+  IoTAnalyticsChannel:
+    Type: 'AWS::IoTAnalytics::Channel'
+    Properties:
+      ChannelName: 
+        Fn::Sub: ${Prefix}_iot_batch_channel
+      RetentionPeriod:
+        Unlimited: false
+        NumberOfDays: 7
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+  IoTAnalyticsPipeline:
+    Type: 'AWS::IoTAnalytics::Pipeline'
+    DependsOn:
+      - IoTAnalyticsChannel
+      - IoTAnalyticsDatastore
+    Properties:
+      PipelineName: 
+        Fn::Sub: ${Prefix}_iot_batch_pipeline
+      PipelineActivities:
+        - Channel:
+            Name: ChannelActivity
+            ChannelName: !Ref IoTAnalyticsChannel
+            Next: DatastoreActivity
+          Datastore:
+            Name: DatastoreActivity
+            DatastoreName: !Ref IoTAnalyticsDatastore
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName      
+  IoTAnalyticsDatastore:
+    Type: 'AWS::IoTAnalytics::Datastore'
+    Properties:
+      DatastoreName: blogdemo_iot_batch_datastore
+      RetentionPeriod:
+        Unlimited: false
+        NumberOfDays: 7
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName  
+  IoTDatasetHighRes:
+    Type: 'AWS::IoTAnalytics::Dataset'
+    DependsOn:
+      - IoTAnalyticsDatastore
+    Properties:
+      Actions:
+        - ActionName: SqlAction
+          QueryAction: 
+            SqlQuery: !Ref SqlQueryHigh
+      DatasetName: 
+        Fn::Sub: ${Prefix}_iot_highreso_dataset
+      RetentionPeriod:
+        Unlimited: false
+        NumberOfDays: 7
+      Triggers:
+        - Schedule:
+            ScheduleExpression: cron(0 12 * * ? *)
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName  
+  IoTDatasetLowRes:
+    Type: 'AWS::IoTAnalytics::Dataset'
+    DependsOn:
+      - IoTAnalyticsDatastore
+    Properties:
+      Actions:
+        - ActionName: SqlAction
+          QueryAction:
+            SqlQuery: !Ref SqlQueryLow
+      DatasetName: 
+        Fn::Sub: ${Prefix}_iot_lowreso_dataset
+      RetentionPeriod:
+        Unlimited: false
+        NumberOfDays: 7
+      Triggers:
+        - Schedule:
+            ScheduleExpression: cron(0 12 * * ? *)
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName  
+  AllowPutToQueue:
+    Type: AWS::IAM::Policy
+    DependsOn: Queue
+    Properties:
+      PolicyName: 
+        Fn::Sub: ${Prefix}_AllowPutToQueue
+      Roles:
+      - Ref: LauncherRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: Stmt1524367266219
+          Action:
+          - kinesis:PutRecord
+          - kinesis:PutRecords
+          Effect: Allow
+          Resource:
+            Fn::GetAtt:
+            - Queue
+            - Arn
+  ReadListS3:
+    Type: AWS::IAM::Policy
+    DependsOn: Queue
+    Properties:
+      PolicyName: 
+        Fn::Sub: ${Prefix}_ReadListS3
+      Roles:
+      - Ref: LauncherRole
+      - Ref: WorkerRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: Stmt1524515862554
+          Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:ListBucket
+          - s3:ListObjects 
+          Resource: 
+          - "arn:aws:s3:::jh-bpm-blog-generated-data"
+          - "arn:aws:s3:::jh-bpm-blog-generated-data/*"
+  SaveLogs:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName:
+        Fn::Sub: ${Prefix}_LogPolicy
+      Roles:
+      - Ref: WorkerRole
+      - Ref: LauncherRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - logs:CreateLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          - logs:DescribeLogStreams
+          Resource: "*"
+  BatchPutMessagePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: 
+        Fn::Sub: ${Prefix}_BatchPutMessagePolicy
+      Roles:
+      - Ref: WorkerRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - iotanalytics:BatchPutMessage
+          Resource: "*"
+  LambdaKinesisTriggerPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: Queue
+    Properties:
+      PolicyName: 
+        Fn::Sub: ${Prefix}_LambdaKinesisTriggerPolicy
+      Roles:
+      - Ref: WorkerRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kinesis:ListStreams
+          - kinesis:GetShardIterator
+          - kinesis:GetRecords
+          - kinesis:DescribeStream
+          Resource:
+            Fn::GetAtt:
+            - Queue
+            - Arn
+  StreamInputEvent:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn:
+    - Worker
+    - Queue
+    - LambdaKinesisTriggerPolicy
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn:
+        Fn::GetAtt:
+        - Queue
+        - Arn
+      FunctionName:
+        Fn::GetAtt:
+        - Worker
+        - Arn
+      StartingPosition: TRIM_HORIZON
+  CreateRawBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: ${Prefix}-ml-train-score-output
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true    
+  NotebookInstanceExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+                - iotanalytics.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AmazonSageMakerExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecr:BatchDeleteImage'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:CompleteLayerUpload'
+                  - 'ecr:CreateRepository'
+                  - 'ecr:DescribeRepositories'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:InitiateLayerUpload'
+                  - 'ecr:PutImage'
+                  - 'ecr:UploadLayerPart'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                Resource: 'arn:aws:s3:::iotanalytics-notebook-containers/*'
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                  - "s3:PutObjectAcl"
+                Resource: "arn:aws:s3:::aws-*-dataset-*/*"
+              - Effect: Allow
+                Action:
+                  - "iotanalytics:*"
+                Resource: "*"
+        - PolicyName: AmazonSageMakerFullAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sagemaker:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'application-autoscaling:DeleteScalingPolicy'
+                  - 'application-autoscaling:DeleteScheduledAction'
+                  - 'application-autoscaling:DeregisterScalableTarget'
+                  - 'application-autoscaling:DescribeScalableTargets'
+                  - 'application-autoscaling:DescribeScalingActivities'
+                  - 'application-autoscaling:DescribeScalingPolicies'
+                  - 'application-autoscaling:DescribeScheduledActions'
+                  - 'application-autoscaling:PutScalingPolicy'
+                  - 'application-autoscaling:PutScheduledAction'
+                  - 'application-autoscaling:RegisterScalableTarget'
+                  - 'cloudwatch:DeleteAlarms'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:GetMetricData'
+                  - 'cloudwatch:GetMetricStatistics'
+                  - 'cloudwatch:ListMetrics'
+                  - 'cloudwatch:PutMetricAlarm'
+                  - 'cloudwatch:PutMetricData'
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:CreateNetworkInterfacePermission'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:DeleteNetworkInterfacePermission'
+                  - 'ec2:DescribeDhcpOptions'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeVpcEndpoints'
+                  - 'ec2:DescribeVpcs'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'iam:ListRoles'
+                  - 'iam:ListRoles'
+                  - 'kms:DescribeKey'
+                  - 'kms:DescribeKey'
+                  - 'kms:ListAliases'
+                  - 'kms:ListAliases'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:GetLogEvents'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:DeleteObject'
+                Resource:
+                  - 'arn:aws:s3:::*SageMaker*'
+                  - 'arn:aws:s3:::*Sagemaker*'
+                  - 'arn:aws:s3:::*sagemaker*'
+                  - !Join
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Ref CreateRawBucket
+                      - /*
+              - Effect: Allow
+                Action:
+                  - 's3:CreateBucket'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                  - 's3:ListAllMyBuckets'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                Resource: '*'
+                Condition:
+                  StringEqualsIgnoreCase:
+                    's3:ExistingObjectTag/SageMaker': 'true'
+              - Action: 'iam:CreateServiceLinkedRole'
+                Effect: Allow
+                Resource: >-
+                  arn:aws:iam::*:role/aws-service-role/sagemaker.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint
+                Condition:
+                  StringLike:
+                    'iam:AWSServiceName': sagemaker.application-autoscaling.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'iam:PassedToService': sagemaker.amazonaws.com
+  NotebookInstance:
+    Type: 'AWS::SageMaker::NotebookInstance'
+    DependsOn: 
+      - NotebookInstanceLifecycleConfig
+      - CreateRawBucket  
+    Properties:
+      InstanceType: ml.m5.4xlarge
+      RoleArn: !GetAtt 
+        - NotebookInstanceExecutionRole
+        - Arn
+      LifecycleConfigName: !GetAtt 
+        - NotebookInstanceLifecycleConfig
+        - NotebookInstanceLifecycleConfigName
+      VolumeSizeInGB: 8
+  NotebookInstanceLifecycleConfig:
+    Type: 'AWS::SageMaker::NotebookInstanceLifecycleConfig'
+    Properties:
+      NotebookInstanceLifecycleConfigName: NotebookInstanceLifecycleConfig
+      OnStart:
+        - Content: !Base64 >-
+            #!/bin/bash
+
+            cd /tmp
+
+            aws s3 cp
+            s3://iotanalytics-notebook-containers/iota_notebook_containers.zip
+            ./
+
+            unzip iota_notebook_containers.zip
+
+            su - ec2-user -c 'source activate JupyterSystemEnv && cd
+            /tmp/iota_notebook_containers && sh install.sh'
